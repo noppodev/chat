@@ -56,10 +56,6 @@
 
         [v-cloak] { display: none; }
 
-        /* Animation */
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
-
         @media (max-width: 768px) {
             .chat-bubble-me, .chat-bubble-other {
                 max-width: 90%;
@@ -87,7 +83,7 @@
         <!-- Sidebar Overlay (Mobile) -->
         <div v-if="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"></div>
 
-        <!-- Desktop Sidebar / Mobile App Switcher -->
+        <!-- Desktop Sidebar -->
         <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" 
                class="fixed md:relative w-[280px] md:w-80 glass-sidebar h-full flex flex-col transition-transform duration-300 ease-in-out z-50">
             <div class="p-6 flex flex-col h-full overflow-hidden">
@@ -154,7 +150,7 @@
 
                 <!-- Profile -->
                 <div v-if="user" class="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3 px-2">
-                    <img :src="user.avatar" class="w-10 h-10 rounded-xl shadow-sm">
+                    <img :src="user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`" class="w-10 h-10 rounded-xl shadow-sm">
                     <div class="overflow-hidden flex-1">
                         <p class="text-xs font-bold truncate">{{ user.userId }}</p>
                         <p class="text-[9px] text-slate-400 truncate tracking-tighter uppercase font-black">認証済み</p>
@@ -311,13 +307,11 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, orderBy, doc, setDoc, deleteDoc, getDoc, limit } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-        import { createApp, ref, onMounted, nextTick, computed, watch } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
+        import { createApp, ref, onMounted, nextTick, computed } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
 
-        // 共通設定
         const AUTH_URL = "https://noppo-auth.noppo5319.workers.dev";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2YXZhc3JkeGd1cWtpaWdjeGtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0MTk5ODcsImV4cCI6MjA4Mjk5NTk4N30.CVq3lyRbxek7Ejs4tP5sN9-0JNEXSLtCsC2Pj-skFFQ";
         
-        // のっぽが提供してくれた固定のFirebase設定
         const manualFirebaseConfig = {
             apiKey: "AIzaSyB2HcI-TwH88QDADp-Z5cUFRCsaVO2VMw0",
             authDomain: "portal-1767266387985.firebaseapp.com",
@@ -326,7 +320,6 @@
             appId: "1:931194072772:web:05d7e925662ddd0f1d6391"
         };
         
-        // 外部から提供されない場合のフォールバック（固定設定を優先）
         const firebaseConfigRaw = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : manualFirebaseConfig;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'noppo-chat-direct-v1-4';
 
@@ -336,18 +329,15 @@
                 const activeTab = ref('chat');
                 const sidebarOpen = ref(window.innerWidth > 1024);
                 
-                // Chat State
                 const items = ref([]);
                 const activeChat = ref(null);
                 const messages = ref([]);
                 const newMessage = ref('');
                 
-                // Circle State
                 const circlePosts = ref([]);
                 const newPostContent = ref('');
                 const myPostsCount = ref(0);
 
-                // UI State
                 const modalMode = ref('none');
                 const formData = ref({ email: '', groupName: '', members: '' });
 
@@ -383,21 +373,26 @@
                         }
                     });
 
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch(e) { console.error("Firebase Auth Error", e); }
                 };
 
                 const syncSidebarData = () => {
                     if (!user.value || !db) return;
-                    onSnapshot(collection(db, 'artifacts', appId, 'users', user.value.email, 'contacts'), (snap) => {
+                    
+                    const contactsRef = collection(db, 'artifacts', appId, 'users', user.value.email, 'contacts');
+                    onSnapshot(contactsRef, (snap) => {
                         const newContacts = snap.docs.map(d => ({ ...d.data(), type: 'contact' }));
                         items.value = [...items.value.filter(i => i.type !== 'contact'), ...newContacts];
                     }, (err) => console.error("Contact sync error:", err));
                     
-                    onSnapshot(collection(db, 'artifacts', appId, 'users', user.value.email, 'groups'), (snap) => {
+                    const groupsRef = collection(db, 'artifacts', appId, 'users', user.value.email, 'groups');
+                    onSnapshot(groupsRef, (snap) => {
                         const newGroups = snap.docs.map(d => ({ ...d.data(), type: 'group' }));
                         items.value = [...items.value.filter(i => i.type !== 'group'), ...newGroups];
                     }, (err) => console.error("Group sync error:", err));
@@ -419,25 +414,40 @@
                     syncMessages();
                 };
 
+                const getRoomId = () => {
+                    if (!activeChat.value || !user.value) return null;
+                    if (activeChat.value.type === 'group') return activeChat.value.id;
+                    // DMの場合はメールアドレスをソートして結合し、記号を削除
+                    return [user.value.email, activeChat.value.email].sort().join('_').replace(/[@.]/g, '');
+                };
+
                 const syncMessages = () => {
-                    if(!db || !activeChat.value) return;
+                    const roomId = getRoomId();
+                    if(!db || !roomId) return;
                     if(currentChatUnsub) currentChatUnsub();
-                    const roomId = activeChat.value.type === 'group' ? activeChat.value.id : [user.value.email, activeChat.value.email].sort().join('_').replace(/[@.]/g, '');
+                    
                     const q = query(collection(db, 'artifacts', appId, 'rooms', roomId, 'messages'), orderBy('createdAt', 'asc'));
                     currentChatUnsub = onSnapshot(q, (snap) => {
                         messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                        nextTick(() => { const c = document.getElementById('chat-container'); if(c) c.scrollTop = c.scrollHeight; });
+                        nextTick(() => { 
+                            const c = document.getElementById('chat-container'); 
+                            if(c) c.scrollTop = c.scrollHeight; 
+                        });
                     }, (err) => console.error("Message sync error:", err));
                 };
 
                 const handleSend = async () => {
-                    if (!newMessage.value.trim() || !db) return;
+                    const roomId = getRoomId();
+                    if (!newMessage.value.trim() || !db || !roomId) return;
                     const content = newMessage.value;
                     newMessage.value = '';
-                    const roomId = activeChat.value.type === 'group' ? activeChat.value.id : [user.value.email, activeChat.value.email].sort().join('_').replace(/[@.]/g, '');
+                    
                     await addDoc(collection(db, 'artifacts', appId, 'rooms', roomId, 'messages'), {
-                        sender: user.value.email, senderName: user.value.userId,
-                        content, type: 'text', createdAt: serverTimestamp()
+                        sender: user.value.email, 
+                        senderName: user.value.userId,
+                        content, 
+                        type: 'text', 
+                        createdAt: serverTimestamp()
                     });
                 };
 
@@ -455,7 +465,7 @@
 
                 const addContact = async () => {
                     const email = formData.value.email.trim();
-                    if(!email || !db) return;
+                    if(!email || !db || !user.value) return;
                     await setDoc(doc(db, 'artifacts', appId, 'users', user.value.email, 'contacts', email), {
                         email, name: email.split('@')[0], addedAt: serverTimestamp()
                     });
@@ -466,15 +476,18 @@
                 const createGroup = async () => {
                     const name = formData.value.groupName.trim();
                     const memberList = formData.value.members.split(',').map(m => m.trim()).filter(m => m);
-                    if (!name || !db) return;
+                    if (!name || !db || !user.value) return;
                     const groupId = 'grp_' + Date.now();
                     const allMembers = [...new Set([...memberList, user.value.email])];
+                    
                     for (const email of allMembers) {
                         await setDoc(doc(db, 'artifacts', appId, 'users', email, 'groups', groupId), {
                             id: groupId, name, members: allMembers, type: 'group', createdAt: serverTimestamp()
                         });
                     }
                     modalMode.value = 'none';
+                    formData.value.groupName = '';
+                    formData.value.members = '';
                 };
 
                 onMounted(initApp);
@@ -489,7 +502,7 @@
                     openPostModal: () => modalMode.value = 'post',
                     selectItem, handleSend, postToCircle, syncCircle, addContact, createGroup,
                     activeChatId: computed(() => activeChat.value?.type === 'group' ? activeChat.value.id : activeChat.value?.email),
-                    sortedItems: computed(() => [...items.value].sort((a, b) => (b.addedAt?.seconds - a.addedAt?.seconds))),
+                    sortedItems: computed(() => [...items.value].sort((a, b) => ((b.addedAt?.seconds || 0) - (a.addedAt?.seconds || 0)))),
                     formatTime: (ts) => ts ? new Date(ts.seconds * 1000).toLocaleString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '...'
                 };
             }
