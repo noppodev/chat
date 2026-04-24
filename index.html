@@ -56,9 +56,6 @@
 
         [v-cloak] { display: none; }
 
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
         /* Animation */
         .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
@@ -140,7 +137,6 @@
                             <p class="text-sm font-bold truncate tracking-tight">{{ item.name || item.email?.split('@')[0] }}</p>
                             <p class="text-[9px] text-slate-400 truncate tracking-tight">{{ item.type === 'group' ? `${item.members.length}人のメンバー` : item.email }}</p>
                         </div>
-                        <div v-if="item.isNew" class="w-2 h-2 bg-blue-500 rounded-full"></div>
                     </div>
                 </div>
 
@@ -203,8 +199,7 @@
                         <div :class="[m.sender === user?.email ? 'items-end' : 'items-start', 'flex flex-col max-w-[85%] md:max-w-[70%]']">
                             <p v-if="activeChat?.type === 'group' && m.sender !== user?.email" class="text-[8px] font-black text-slate-400 uppercase mb-1 ml-2">{{ m.senderName }}</p>
                             <div :class="[m.sender === user?.email ? 'chat-bubble-me' : 'chat-bubble-other', 'px-4 py-2.5 text-sm shadow-sm']">
-                                <div v-if="m.type === 'image'" class="mb-1"><img :src="m.content" class="rounded-lg max-h-60 w-full object-cover"></div>
-                                <span v-else class="whitespace-pre-wrap leading-relaxed">{{ m.content }}</span>
+                                <span class="whitespace-pre-wrap leading-relaxed">{{ m.content }}</span>
                             </div>
                             <p class="text-[8px] text-slate-300 font-bold uppercase mt-1 px-1">{{ formatTime(m.createdAt) }}</p>
                         </div>
@@ -213,11 +208,7 @@
 
                 <div v-if="activeChat" class="p-4 md:p-10 pt-0 pb-6 md:pb-10 bg-white md:bg-transparent">
                     <div class="max-w-4xl mx-auto flex items-end gap-2 md:gap-3 bg-white p-2 rounded-[24px] border border-slate-100 shadow-2xl shadow-slate-100 relative">
-                        <label class="mb-2 ml-1 w-9 h-9 rounded-full flex items-center justify-center text-slate-300 cursor-pointer hover:text-blue-500 transition-all shrink-0">
-                            <i class="fas fa-image text-xs"></i>
-                            <input type="file" @change="handleFileUpload" class="hidden" accept="image/*">
-                        </label>
-                        <textarea v-model="newMessage" @keydown.enter.exact.prevent="handleSend" rows="1" placeholder="メッセージを入力..." class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-1 md:px-2 resize-none max-h-32 font-medium"></textarea>
+                        <textarea v-model="newMessage" @keydown.enter.exact.prevent="handleSend" rows="1" placeholder="メッセージを入力..." class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-4 resize-none max-h-32 font-medium"></textarea>
                         <button @click="handleSend" :disabled="!newMessage.trim()" class="w-11 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center disabled:opacity-20 transition-all shadow-lg mb-0.5 mr-0.5 shrink-0">
                             <i class="fas fa-paper-plane text-xs"></i>
                         </button>
@@ -319,14 +310,25 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, orderBy, doc, setDoc, limit } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-        import { createApp, ref, onMounted, nextTick, computed } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, orderBy, doc, setDoc, deleteDoc, getDoc, limit } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { createApp, ref, onMounted, nextTick, computed, watch } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
 
+        // 共通設定
         const AUTH_URL = "https://noppo-auth.noppo5319.workers.dev";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2YXZhc3JkeGd1cWtpaWdjeGtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0MTk5ODcsImV4cCI6MjA4Mjk5NTk4N30.CVq3lyRbxek7Ejs4tP5sN9-0JNEXSLtCsC2Pj-skFFQ";
         
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'noppo-chat-circle-v1';
+        // のっぽが提供してくれた固定のFirebase設定
+        const manualFirebaseConfig = {
+            apiKey: "AIzaSyB2HcI-TwH88QDADp-Z5cUFRCsaVO2VMw0",
+            authDomain: "portal-1767266387985.firebaseapp.com",
+            projectId: "portal-1767266387985",
+            storageBucket: "portal-1767266387985.firebasestorage.app",
+            appId: "1:931194072772:web:05d7e925662ddd0f1d6391"
+        };
+        
+        // 外部から提供されない場合のフォールバック（固定設定を優先）
+        const firebaseConfigRaw = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : manualFirebaseConfig;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'noppo-chat-direct-v1-4';
 
         createApp({
             setup() {
@@ -368,15 +370,14 @@
                 };
 
                 const initApp = async () => {
-                    const fbApp = initializeApp(firebaseConfig);
+                    const fbApp = initializeApp(firebaseConfigRaw);
                     auth = getAuth(fbApp);
                     db = getFirestore(fbApp);
                     
-                    const noppoUser = await checkAuth();
+                    user.value = await checkAuth();
                     
                     onAuthStateChanged(auth, async (fbUser) => {
-                        if (fbUser && noppoUser) {
-                            user.value = noppoUser;
+                        if (fbUser && user.value) {
                             syncSidebarData();
                             syncCircle();
                         }
@@ -390,24 +391,26 @@
                 };
 
                 const syncSidebarData = () => {
-                    if (!user.value) return;
+                    if (!user.value || !db) return;
                     onSnapshot(collection(db, 'artifacts', appId, 'users', user.value.email, 'contacts'), (snap) => {
                         const newContacts = snap.docs.map(d => ({ ...d.data(), type: 'contact' }));
                         items.value = [...items.value.filter(i => i.type !== 'contact'), ...newContacts];
-                    });
+                    }, (err) => console.error("Contact sync error:", err));
+                    
                     onSnapshot(collection(db, 'artifacts', appId, 'users', user.value.email, 'groups'), (snap) => {
                         const newGroups = snap.docs.map(d => ({ ...d.data(), type: 'group' }));
                         items.value = [...items.value.filter(i => i.type !== 'group'), ...newGroups];
-                    });
+                    }, (err) => console.error("Group sync error:", err));
                 };
 
                 const syncCircle = () => {
+                    if (!db) return;
                     if (circleUnsub) circleUnsub();
                     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'circle_posts'), orderBy('createdAt', 'desc'), limit(50));
                     circleUnsub = onSnapshot(q, (snap) => {
                         circlePosts.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                         myPostsCount.value = circlePosts.value.filter(p => p.authorEmail === user.value?.email).length;
-                    });
+                    }, (err) => console.error("Circle sync error:", err));
                 };
 
                 const selectItem = (item) => {
@@ -417,17 +420,18 @@
                 };
 
                 const syncMessages = () => {
+                    if(!db || !activeChat.value) return;
                     if(currentChatUnsub) currentChatUnsub();
                     const roomId = activeChat.value.type === 'group' ? activeChat.value.id : [user.value.email, activeChat.value.email].sort().join('_').replace(/[@.]/g, '');
                     const q = query(collection(db, 'artifacts', appId, 'rooms', roomId, 'messages'), orderBy('createdAt', 'asc'));
                     currentChatUnsub = onSnapshot(q, (snap) => {
                         messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                         nextTick(() => { const c = document.getElementById('chat-container'); if(c) c.scrollTop = c.scrollHeight; });
-                    });
+                    }, (err) => console.error("Message sync error:", err));
                 };
 
                 const handleSend = async () => {
-                    if (!newMessage.value.trim()) return;
+                    if (!newMessage.value.trim() || !db) return;
                     const content = newMessage.value;
                     newMessage.value = '';
                     const roomId = activeChat.value.type === 'group' ? activeChat.value.id : [user.value.email, activeChat.value.email].sort().join('_').replace(/[@.]/g, '');
@@ -438,7 +442,7 @@
                 };
 
                 const postToCircle = async () => {
-                    if (!newPostContent.value.trim()) return;
+                    if (!newPostContent.value.trim() || !db) return;
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'circle_posts'), {
                         authorEmail: user.value.email,
                         authorName: user.value.userId,
@@ -451,9 +455,9 @@
 
                 const addContact = async () => {
                     const email = formData.value.email.trim();
-                    if(!email) return;
+                    if(!email || !db) return;
                     await setDoc(doc(db, 'artifacts', appId, 'users', user.value.email, 'contacts', email), {
-                        email, name: email.split('@')[0], isNew: false, addedAt: serverTimestamp()
+                        email, name: email.split('@')[0], addedAt: serverTimestamp()
                     });
                     modalMode.value = 'none';
                     formData.value.email = '';
@@ -462,7 +466,7 @@
                 const createGroup = async () => {
                     const name = formData.value.groupName.trim();
                     const memberList = formData.value.members.split(',').map(m => m.trim()).filter(m => m);
-                    if (!name) return;
+                    if (!name || !db) return;
                     const groupId = 'grp_' + Date.now();
                     const allMembers = [...new Set([...memberList, user.value.email])];
                     for (const email of allMembers) {
@@ -485,7 +489,7 @@
                     openPostModal: () => modalMode.value = 'post',
                     selectItem, handleSend, postToCircle, syncCircle, addContact, createGroup,
                     activeChatId: computed(() => activeChat.value?.type === 'group' ? activeChat.value.id : activeChat.value?.email),
-                    sortedItems: computed(() => [...items.value].sort((a, b) => (b.isNew ? 1 : -1) || (b.addedAt?.seconds - a.addedAt?.seconds))),
+                    sortedItems: computed(() => [...items.value].sort((a, b) => (b.addedAt?.seconds - a.addedAt?.seconds))),
                     formatTime: (ts) => ts ? new Date(ts.seconds * 1000).toLocaleString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '...'
                 };
             }
