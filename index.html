@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>NoppoChat | Creative & Direct</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -19,9 +19,13 @@
         body { 
             font-family: 'Inter', 'Noto Sans JP', sans-serif; 
             background: var(--n-liquid-bg);
-            height: 100vh;
+            height: 100dvh;
             overflow: hidden;
             color: #0f172a;
+        }
+
+        #app {
+            height: 100dvh;
         }
 
         .glass-sidebar {
@@ -55,7 +59,7 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* AI Loading indicator */
+        /* AI Writing indicator */
         .writing-indicator {
             display: inline-flex;
             gap: 2px;
@@ -73,10 +77,17 @@
             from { opacity: 0.2; transform: translateY(0); }
             to { opacity: 1; transform: translateY(-2px); }
         }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .chat-bubble-me, .chat-bubble-other {
+                max-width: 90%;
+            }
+        }
     </style>
 </head>
 <body class="antialiased">
-    <div id="app" v-cloak class="flex h-full overflow-hidden relative">
+    <div id="app" v-cloak class="flex overflow-hidden relative">
         
         <!-- Login Gate -->
         <div v-if="!user" class="fixed inset-0 z-[1000] flex items-center justify-center bg-white">
@@ -98,7 +109,7 @@
         <!-- Sidebar -->
         <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" 
                class="fixed md:relative w-[280px] md:w-80 glass-sidebar h-full flex flex-col transition-transform duration-300 ease-in-out z-50">
-            <div class="p-6 flex flex-col h-full">
+            <div class="p-6 flex flex-col h-full overflow-hidden">
                 <div class="flex items-center justify-between mb-8 px-2">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-xl">
@@ -107,7 +118,7 @@
                         <h1 class="text-lg font-black tracking-tighter">NoppoChat</h1>
                     </div>
                     <div class="flex gap-2">
-                        <button @click="showAddModal = true" class="w-9 h-9 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:shadow-md transition-all">
+                        <button @click="openAddModal" class="w-9 h-9 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-500 hover:shadow-md transition-all">
                             <i class="fas fa-plus text-xs"></i>
                         </button>
                         <button @click="sidebarOpen = false" class="md:hidden w-9 h-9 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400">
@@ -116,25 +127,34 @@
                     </div>
                 </div>
 
-                <!-- Contacts -->
+                <!-- Contacts & Groups -->
                 <div class="flex-1 overflow-y-auto liquid-scroll pr-1">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-4">メッセージ</p>
                     
-                    <div v-for="contact in sortedContacts" :key="contact.email" 
-                         @click="selectContact(contact)"
-                         :class="activeContact?.email === contact.email ? 'bg-white border-slate-100 shadow-sm' : ''"
+                    <div v-for="item in sortedItems" :key="item.id || item.email" 
+                         @click="selectItem(item)"
+                         :class="activeChatId === (item.id || item.email) ? 'bg-white border-slate-100 shadow-sm' : ''"
                          class="p-3 rounded-2xl cursor-pointer flex items-center gap-3 mb-1 border border-transparent hover:bg-white/60 transition-all group">
-                        <img :src="`https://api.dicebear.com/7.x/initials/svg?seed=${contact.email}`" class="w-10 h-10 rounded-xl">
-                        <div class="flex-1 overflow-hidden text-left">
-                            <p class="text-sm font-bold truncate tracking-tight">{{ nicknames[contact.email] || contact.name || contact.email.split('@')[0] }}</p>
-                            <p class="text-[9px] text-slate-400 truncate tracking-tight">{{ contact.email }}</p>
+                        
+                        <!-- Avatar -->
+                        <div class="relative">
+                            <img v-if="item.type === 'group'" :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${item.id}`" class="w-10 h-10 rounded-xl bg-slate-100">
+                            <img v-else :src="`https://api.dicebear.com/7.x/initials/svg?seed=${item.email}`" class="w-10 h-10 rounded-xl">
+                            <div v-if="item.type === 'group'" class="absolute -top-1 -right-1 w-4 h-4 bg-slate-900 text-[8px] text-white rounded-full flex items-center justify-center border-2 border-white">
+                                <i class="fas fa-users"></i>
+                            </div>
                         </div>
-                        <div v-if="contact.isNew" class="w-2 h-2 bg-blue-500 rounded-full"></div>
+
+                        <div class="flex-1 overflow-hidden text-left">
+                            <p class="text-sm font-bold truncate tracking-tight">{{ item.name || item.email?.split('@')[0] }}</p>
+                            <p class="text-[9px] text-slate-400 truncate tracking-tight">{{ item.type === 'group' ? `${item.members.length}人のメンバー` : item.email }}</p>
+                        </div>
+                        <div v-if="item.isNew" class="w-2 h-2 bg-blue-500 rounded-full"></div>
                     </div>
                 </div>
 
                 <!-- Profile -->
-                <div v-if="user" class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3 px-2">
+                <div v-if="user" class="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3 px-2">
                     <img :src="user.avatar" class="w-10 h-10 rounded-xl shadow-sm">
                     <div class="overflow-hidden flex-1">
                         <p class="text-xs font-bold truncate">{{ user.userId }}</p>
@@ -154,14 +174,19 @@
                     <button @click="sidebarOpen = true" class="md:hidden w-10 h-10 flex items-center justify-center text-slate-600">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <template v-if="activeContact">
-                        <img :src="`https://api.dicebear.com/7.x/initials/svg?seed=${activeContact.email}`" class="w-9 h-9 md:w-10 md:h-10 rounded-xl">
+                    <template v-if="activeChat">
+                        <img v-if="activeChat.type === 'group'" :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${activeChat.id}`" class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-slate-100">
+                        <img v-else :src="`https://api.dicebear.com/7.x/initials/svg?seed=${activeChat.email}`" class="w-9 h-9 md:w-10 md:h-10 rounded-xl">
+                        
                         <div class="overflow-hidden">
                             <h2 class="font-bold text-sm md:text-base tracking-tight truncate">
-                                {{ nicknames[activeContact.email] || activeContact.email }}
+                                {{ activeChat.name || activeChat.email }}
                             </h2>
-                            <span class="text-[8px] md:text-[9px] font-black text-emerald-500 uppercase tracking-widest block">
+                            <span v-if="activeChat.type !== 'group'" class="text-[8px] md:text-[9px] font-black text-emerald-500 uppercase tracking-widest block">
                                 オンライン
+                            </span>
+                            <span v-else class="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest block">
+                                グループメッセージ
                             </span>
                         </div>
                     </template>
@@ -173,7 +198,7 @@
 
             <!-- Messages List -->
             <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 liquid-scroll">
-                <div v-if="!activeContact" class="h-full flex flex-col items-center justify-center opacity-10">
+                <div v-if="!activeChat" class="h-full flex flex-col items-center justify-center opacity-10">
                     <i class="fas fa-paper-plane text-9xl mb-6"></i>
                     <p class="text-sm font-black tracking-widest uppercase">メッセージを選択</p>
                 </div>
@@ -183,6 +208,9 @@
                      class="flex items-end gap-3">
                     
                     <div :class="[m.sender === user?.email ? 'items-end' : 'items-start', 'flex flex-col max-w-[85%] md:max-w-[70%]']">
+                        <p v-if="activeChat?.type === 'group' && m.sender !== user?.email" class="text-[8px] font-black text-slate-400 uppercase mb-1 ml-2">
+                            {{ m.senderName || m.sender.split('@')[0] }}
+                        </p>
                         <div :class="[m.sender === user?.email ? 'chat-bubble-me' : 'chat-bubble-other', 'px-4 py-2.5 text-sm shadow-sm']">
                             <div v-if="m.type === 'image'" class="mb-1">
                                 <img :src="m.content" class="rounded-lg max-h-60 w-full object-cover">
@@ -197,7 +225,7 @@
             </div>
 
             <!-- Footer Section -->
-            <div v-if="activeContact" class="shrink-0">
+            <div v-if="activeChat" class="shrink-0 bg-white md:bg-transparent">
                 <!-- AI Writing Assistant Area -->
                 <div class="px-4 md:px-10 overflow-hidden">
                     <div class="max-w-4xl mx-auto mb-2 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
@@ -213,7 +241,7 @@
                 </div>
 
                 <!-- Input Area -->
-                <div class="p-4 md:p-10 pt-0">
+                <div class="p-4 md:p-10 pt-0 pb-6 md:pb-10">
                     <div class="max-w-4xl mx-auto flex items-end gap-2 md:gap-3 bg-white p-2 rounded-[24px] border border-slate-100 shadow-2xl shadow-slate-100 relative">
                         
                         <label class="mb-2 ml-1 w-9 h-9 rounded-full flex items-center justify-center text-slate-300 cursor-pointer hover:text-blue-500 transition-all shrink-0">
@@ -223,8 +251,9 @@
 
                         <textarea v-model="newMessage" @keydown.enter.exact.prevent="handleSend"
                                   ref="inputField"
+                                  rows="1"
                                   placeholder="メッセージ..." 
-                                  class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-1 md:px-2 resize-none min-h-[44px] max-h-32 font-medium"></textarea>
+                                  class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-1 md:px-2 resize-none max-h-32 font-medium"></textarea>
                         
                         <button @click="handleSend" :disabled="!newMessage.trim() && !aiThinking" 
                                 class="w-11 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center disabled:opacity-20 transition-all shadow-lg mb-0.5 mr-0.5 shrink-0">
@@ -235,48 +264,56 @@
             </div>
         </main>
 
-        <!-- Add Contact Modal -->
-        <div v-if="showAddModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div @click="showAddModal = false" class="absolute inset-0 n-modal-overlay"></div>
+        <!-- Add Interaction Modal -->
+        <div v-if="modalMode !== 'none'" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div @click="modalMode = 'none'" class="absolute inset-0 n-modal-overlay"></div>
             <div class="bg-white rounded-[32px] md:rounded-[40px] w-full max-w-sm relative p-8 md:p-10 shadow-2xl" @click.stop>
-                <h3 class="text-xl md:text-2xl font-black mb-6 tracking-tighter">連絡先を追加</h3>
-                <input v-model="newContactEmail" type="email" placeholder="メールアドレス" class="w-full p-4 md:p-5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold mb-6 outline-none">
-                <button @click="addContact(newContactEmail)" class="w-full py-4 md:py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest">追加</button>
+                
+                <div class="flex gap-4 mb-8">
+                    <button @click="modalMode = 'contact'" :class="modalMode === 'contact' ? 'text-slate-900' : 'text-slate-300'" class="text-sm font-black uppercase tracking-widest transition-colors">連絡先</button>
+                    <button @click="modalMode = 'group'" :class="modalMode === 'group' ? 'text-slate-900' : 'text-slate-300'" class="text-sm font-black uppercase tracking-widest transition-colors">グループ</button>
+                </div>
+
+                <div v-if="modalMode === 'contact'">
+                    <h3 class="text-xl md:text-2xl font-black mb-6 tracking-tighter">連絡先を追加</h3>
+                    <input v-model="formData.email" type="email" placeholder="メールアドレス" class="w-full p-4 md:p-5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold mb-6 outline-none">
+                    <button @click="addContact" class="w-full py-4 md:py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest">追加</button>
+                </div>
+
+                <div v-if="modalMode === 'group'">
+                    <h3 class="text-xl md:text-2xl font-black mb-6 tracking-tighter">グループを作成</h3>
+                    <input v-model="formData.groupName" type="text" placeholder="グループ名" class="w-full p-4 md:p-5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold mb-4 outline-none">
+                    <textarea v-model="formData.members" placeholder="メンバーのメールアドレス (カンマ区切り)" class="w-full p-4 md:p-5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold mb-6 outline-none h-24 resize-none"></textarea>
+                    <button @click="createGroup" class="w-full py-4 md:py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest">作成</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, orderBy, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, orderBy, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
         import { createApp, ref, onMounted, nextTick, computed } from "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js";
 
         const AUTH_URL = "https://noppo-auth.noppo5319.workers.dev";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2YXZhc3JkeGd1cWtpaWdjeGtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0MTk5ODcsImV4cCI6MjA4Mjk5NTk4N30.CVq3lyRbxek7Ejs4tP5sN9-0JNEXSLtCsC2Pj-skFFQ";
         const NEXUS_API = "https://nexus-api.noppo5319.workers.dev";
         
-        const firebaseConfig = {
-            apiKey: "AIzaSyB2HcI-TwH88QDADp-Z5cUFRCsaVO2VMw0",
-            authDomain: "portal-1767266387985.firebaseapp.com",
-            projectId: "portal-1767266387985",
-            storageBucket: "portal-1767266387985.firebasestorage.app",
-            appId: "1:931194072772:web:05d7e925662ddd0f1d6391"
-        };
-        const appId = 'noppo-chat-direct-v1-6';
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'noppo-chat-direct-v2';
 
         createApp({
             setup() {
                 const user = ref(null);
-                const contacts = ref([]);
-                const activeContact = ref(null);
+                const items = ref([]); // Contacts + Groups
+                const activeChat = ref(null);
                 const messages = ref([]);
                 const newMessage = ref('');
-                const showAddModal = ref(false);
-                const newContactEmail = ref('');
+                const modalMode = ref('none'); // 'none', 'contact', 'group'
+                const formData = ref({ email: '', groupName: '', members: '' });
                 const sidebarOpen = ref(window.innerWidth > 1024);
                 const aiThinking = ref(false);
-                const nicknames = ref(JSON.parse(localStorage.getItem('noppo_nicknames') || '{}'));
                 const inputField = ref(null);
 
                 const aiTools = [
@@ -294,8 +331,7 @@
                     if (ticket) {
                         try {
                             const res = await fetch(`${AUTH_URL}/auth/v1/user?ticket=${ticket}`, {
-                                method: 'GET',
-                                headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' }
+                                headers: { 'apikey': SUPABASE_KEY }
                             });
                             if (res.ok) {
                                 const userData = await res.json();
@@ -303,10 +339,9 @@
                                 window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
                                 return userData;
                             }
-                        } catch (e) { console.error(e); }
+                        } catch (e) {}
                     }
-                    const saved = localStorage.getItem('noppo_user');
-                    return saved ? JSON.parse(saved) : null;
+                    return JSON.parse(localStorage.getItem('noppo_user'));
                 };
 
                 const initApp = async () => {
@@ -318,46 +353,132 @@
                     onAuthStateChanged(auth, async (fbUser) => {
                         if (fbUser && noppoUser) {
                             user.value = noppoUser;
-                            syncContacts();
+                            syncData();
                         }
                     });
-                    await signInAnonymously(auth);
+
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
                 };
 
-                const syncContacts = () => {
+                const syncData = () => {
                     if (!user.value) return;
+                    // Sync Contacts
                     const contactCol = collection(db, 'artifacts', appId, 'users', user.value.email, 'contacts');
                     onSnapshot(contactCol, (snap) => {
-                        contacts.value = snap.docs.map(d => d.data());
+                        const contacts = snap.docs.map(d => ({ ...d.data(), type: 'contact' }));
+                        updateItems(contacts, 'contact');
+                    });
+
+                    // Sync Groups
+                    const groupCol = collection(db, 'artifacts', appId, 'users', user.value.email, 'groups');
+                    onSnapshot(groupCol, (snap) => {
+                        const groups = snap.docs.map(d => ({ ...d.data(), type: 'group' }));
+                        updateItems(groups, 'group');
                     });
                 };
 
-                const selectContact = (contact) => {
-                    activeContact.value = contact;
+                const updateItems = (newItems, type) => {
+                    const otherItems = items.value.filter(i => i.type !== type);
+                    items.value = [...otherItems, ...newItems];
+                };
+
+                const selectItem = (item) => {
+                    activeChat.value = item;
                     if(window.innerWidth < 768) sidebarOpen.value = false;
-                    if(contact.isNew) markAsRead(contact.email);
+                    if(item.isNew) markAsRead(item);
                     syncMessages();
                 };
 
                 const syncMessages = () => {
                     if(currentUnsub) currentUnsub();
-                    if(!user.value || !activeContact.value) return;
+                    if(!user.value || !activeChat.value) return;
 
-                    const roomId = [user.value.email, activeContact.value.email].sort().join('_').replace(/[@.]/g, '');
+                    const roomId = activeChat.value.type === 'group' 
+                        ? activeChat.value.id 
+                        : [user.value.email, activeChat.value.email].sort().join('_').replace(/[@.]/g, '');
+                    
                     const msgCol = collection(db, 'artifacts', appId, 'rooms', roomId, 'messages');
                     const q = query(msgCol, orderBy('createdAt', 'asc'));
                     
                     currentUnsub = onSnapshot(q, (snap) => {
                         messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                         scrollToBottom();
-                    });
+                    }, (err) => console.error("Firestore Listen Error", err));
                 };
 
                 const handleSend = async () => {
                     const text = newMessage.value.trim();
                     if(!text || aiThinking.value) return;
                     newMessage.value = '';
-                    await saveMessage('text', text, user.value.email);
+                    await saveMessage('text', text);
+                };
+
+                const saveMessage = async (type, content, extra = {}) => {
+                    if(!user.value || !activeChat.value) return;
+                    const isGroup = activeChat.value.type === 'group';
+                    const roomId = isGroup 
+                        ? activeChat.value.id 
+                        : [user.value.email, activeChat.value.email].sort().join('_').replace(/[@.]/g, '');
+                    
+                    const msgCol = collection(db, 'artifacts', appId, 'rooms', roomId, 'messages');
+                    await addDoc(msgCol, {
+                        sender: user.value.email,
+                        senderName: user.value.userId,
+                        content, type, ...extra,
+                        createdAt: serverTimestamp()
+                    });
+
+                    // 通知更新
+                    if (isGroup) {
+                        activeChat.value.members.forEach(async (email) => {
+                            if (email === user.value.email) return;
+                            const ref = doc(db, 'artifacts', appId, 'users', email, 'groups', activeChat.value.id);
+                            await setDoc(ref, { isNew: true }, { merge: true });
+                        });
+                    } else {
+                        const ref = doc(db, 'artifacts', appId, 'users', activeChat.value.email, 'contacts', user.value.email);
+                        await setDoc(ref, { email: user.value.email, name: user.value.userId, isNew: true }, { merge: true });
+                    }
+                };
+
+                const addContact = async () => {
+                    const email = formData.value.email.trim();
+                    if(!user.value || !email) return;
+                    const contactRef = doc(db, 'artifacts', appId, 'users', user.value.email, 'contacts', email);
+                    await setDoc(contactRef, { email, name: email.split('@')[0], isNew: false, addedAt: serverTimestamp() });
+                    modalMode.value = 'none';
+                    formData.value.email = '';
+                };
+
+                const createGroup = async () => {
+                    const name = formData.value.groupName.trim();
+                    const memberList = formData.value.members.split(',').map(m => m.trim()).filter(m => m);
+                    if (!name || !user.value) return;
+
+                    const groupId = 'group_' + Date.now();
+                    const allMembers = [...new Set([...memberList, user.value.email])];
+                    
+                    const groupData = { id: groupId, name, members: allMembers, type: 'group', createdAt: serverTimestamp() };
+
+                    for (const email of allMembers) {
+                        const ref = doc(db, 'artifacts', appId, 'users', email, 'groups', groupId);
+                        await setDoc(ref, groupData);
+                    }
+
+                    modalMode.value = 'none';
+                    formData.value.groupName = '';
+                    formData.value.members = '';
+                };
+
+                const markAsRead = async (item) => {
+                    const collectionName = item.type === 'group' ? 'groups' : 'contacts';
+                    const id = item.type === 'group' ? item.id : item.email;
+                    const ref = doc(db, 'artifacts', appId, 'users', user.value.email, collectionName, id);
+                    await setDoc(ref, { isNew: false }, { merge: true });
                 };
 
                 const useAITool = async (tool) => {
@@ -367,59 +488,20 @@
                         const response = await fetch(NEXUS_API, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                prompt: `${tool.prompt}\n\n"${newMessage.value}"`,
-                                agent_mode: false
-                            })
+                            body: JSON.stringify({ prompt: `${tool.prompt}\n\n"${newMessage.value}"` })
                         });
                         const data = await response.json();
                         if(data.status === "success") {
-                            if (tool.label === '続きを書く') {
-                                newMessage.value += data.response;
-                            } else {
-                                newMessage.value = data.response;
-                            }
+                            newMessage.value = tool.label === '続きを書く' ? newMessage.value + data.response : data.response;
                         }
-                    } catch (e) {
-                        console.error("AI Error", e);
-                    } finally {
-                        aiThinking.value = false;
-                        nextTick(() => inputField.value?.focus());
-                    }
-                };
-
-                const saveMessage = async (type, content, sender, extra = {}) => {
-                    if(!user.value || !activeContact.value) return;
-                    const roomId = [user.value.email, activeContact.value.email].sort().join('_').replace(/[@.]/g, '');
-                    
-                    const msgCol = collection(db, 'artifacts', appId, 'rooms', roomId, 'messages');
-                    await addDoc(msgCol, {
-                        sender, content, type, ...extra,
-                        createdAt: serverTimestamp()
-                    });
-
-                    const targetContactRef = doc(db, 'artifacts', appId, 'users', activeContact.value.email, 'contacts', user.value.email);
-                    await setDoc(targetContactRef, { email: user.value.email, name: user.value.userId, isNew: true }, { merge: true });
-                };
-
-                const markAsRead = async (email) => {
-                    const contactRef = doc(db, 'artifacts', appId, 'users', user.value.email, 'contacts', email);
-                    await setDoc(contactRef, { isNew: false }, { merge: true });
-                };
-
-                const addContact = async (email) => {
-                    if(!user.value || !email) return;
-                    const contactRef = doc(db, 'artifacts', appId, 'users', user.value.email, 'contacts', email);
-                    await setDoc(contactRef, { email, name: email.split('@')[0], isNew: false, addedAt: serverTimestamp() });
-                    showAddModal.value = false;
-                    newContactEmail.value = '';
+                    } catch (e) {} finally { aiThinking.value = false; }
                 };
 
                 const handleFileUpload = (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
                     const reader = new FileReader();
-                    reader.onload = (event) => saveMessage('image', event.target.result, user.value.email);
+                    reader.onload = (event) => saveMessage('image', event.target.result);
                     reader.readAsDataURL(file);
                 };
 
@@ -430,20 +512,17 @@
                     });
                 };
 
-                onMounted(() => {
-                    initApp();
-                    window.addEventListener('resize', () => {
-                        if(window.innerWidth > 1024) sidebarOpen.value = true;
-                    });
-                });
+                onMounted(initApp);
 
                 return { 
-                    user, contacts, activeContact, messages, newMessage, showAddModal, newContactEmail,
-                    sidebarOpen, nicknames, aiThinking, aiTools, inputField,
+                    user, items, activeChat, messages, newMessage, modalMode, formData,
+                    sidebarOpen, aiThinking, aiTools, inputField,
                     login: () => window.location.href = `${AUTH_URL}?redirect=${encodeURIComponent(window.location.href)}`,
                     logout: () => { localStorage.removeItem('noppo_user'); window.location.href = `${AUTH_URL}/logout?redirect=${encodeURIComponent(window.location.origin)}`; },
-                    addContact, selectContact, handleSend, handleFileUpload, useAITool,
-                    sortedContacts: computed(() => [...contacts.value].sort((a, b) => (b.isNew ? 1 : -1))),
+                    openAddModal: () => modalMode.value = 'contact',
+                    addContact, createGroup, selectItem, handleSend, handleFileUpload, useAITool,
+                    activeChatId: computed(() => activeChat.value?.type === 'group' ? activeChat.value.id : activeChat.value?.email),
+                    sortedItems: computed(() => [...items.value].sort((a, b) => (b.isNew ? 1 : -1) || (b.addedAt?.seconds - a.addedAt?.seconds))),
                     formatTime: (ts) => ts ? new Date(ts.seconds * 1000).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '...'
                 };
             }
