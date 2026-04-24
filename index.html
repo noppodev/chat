@@ -24,9 +24,7 @@
             color: #0f172a;
         }
 
-        #app {
-            height: 100dvh;
-        }
+        #app { height: 100dvh; }
 
         .glass-sidebar {
             background: rgba(255, 255, 255, 0.8);
@@ -50,16 +48,29 @@
         .liquid-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
 
         .n-modal-overlay {
-            background: rgba(15, 23, 42, 0.1);
+            background: rgba(15, 23, 42, 0.2);
             backdrop-filter: blur(12px);
         }
 
         [v-cloak] { display: none; }
 
+        .profile-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-preview-container {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--n-border);
+        }
+
         @media (max-width: 768px) {
-            .chat-bubble-me, .chat-bubble-other {
-                max-width: 90%;
-            }
+            .chat-bubble-me, .chat-bubble-other { max-width: 92%; }
         }
     </style>
 </head>
@@ -74,16 +85,14 @@
                 </div>
                 <h1 class="text-2xl font-black mb-2 tracking-tighter">NoppoChat Direct</h1>
                 <p class="text-sm text-slate-400 font-medium mb-10 leading-relaxed">続行するには NoppoAuth で<br>認証を完了してください</p>
-                <button @click="login" class="w-full py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-2xl shadow-slate-200 hover:scale-[1.02] active:scale-95 transition-all">
-                    サインイン
-                </button>
+                <button @click="login" class="w-full py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-2xl shadow-slate-200 hover:scale-[1.02] active:scale-95 transition-all">サインイン</button>
             </div>
         </div>
 
         <!-- Sidebar Overlay (Mobile) -->
         <div v-if="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"></div>
 
-        <!-- Desktop Sidebar -->
+        <!-- Sidebar -->
         <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" 
                class="fixed md:relative w-[280px] md:w-80 glass-sidebar h-full flex flex-col transition-transform duration-300 ease-in-out z-50">
             <div class="p-6 flex flex-col h-full overflow-hidden">
@@ -94,12 +103,8 @@
                         </div>
                         <h1 class="text-lg font-black tracking-tighter">NoppoChat</h1>
                     </div>
-                    <button @click="sidebarOpen = false" class="md:hidden w-9 h-9 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400">
-                        <i class="fas fa-times text-xs"></i>
-                    </button>
                 </div>
 
-                <!-- App Navigation -->
                 <nav class="flex gap-1 mb-8 bg-slate-100/50 p-1 rounded-2xl">
                     <button @click="activeTab = 'chat'" :class="activeTab === 'chat' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'" class="flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
                         <i class="fas fa-comment-dots mr-2"></i>チャット
@@ -109,51 +114,44 @@
                     </button>
                 </nav>
 
-                <!-- Sidebar Content: Chat Contacts -->
+                <!-- Sidebar Chat Contacts -->
                 <div v-if="activeTab === 'chat'" class="flex-1 overflow-y-auto liquid-scroll pr-1 flex flex-col">
                     <div class="flex items-center justify-between px-3 mb-4">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">メッセージ</p>
-                        <button @click="openAddModal" class="text-slate-400 hover:text-blue-500 transition-colors"><i class="fas fa-plus text-xs"></i></button>
+                        <button @click="modalMode = 'contact'" class="text-slate-400 hover:text-blue-500 transition-colors"><i class="fas fa-plus text-xs"></i></button>
                     </div>
                     
                     <div v-for="item in sortedItems" :key="item.id || item.email" 
                          @click="selectItem(item)"
                          :class="activeChatId === (item.id || item.email) ? 'bg-white border-slate-100 shadow-sm' : ''"
                          class="p-3 rounded-2xl cursor-pointer flex items-center gap-3 mb-1 border border-transparent hover:bg-white/60 transition-all">
-                        
-                        <div class="relative">
-                            <img v-if="item.type === 'group'" :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${item.id}`" class="w-10 h-10 rounded-xl bg-slate-100">
-                            <img v-else :src="`https://api.dicebear.com/7.x/initials/svg?seed=${item.email}`" class="w-10 h-10 rounded-xl">
-                            <div v-if="item.type === 'group'" class="absolute -top-1 -right-1 w-4 h-4 bg-slate-900 text-[8px] text-white rounded-full flex items-center justify-center border-2 border-white">
-                                <i class="fas fa-users"></i>
-                            </div>
-                        </div>
-
-                        <div class="flex-1 overflow-hidden text-left">
+                        <img v-if="item.type === 'group'" :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${item.id}`" class="w-10 h-10 rounded-xl bg-slate-100">
+                        <img v-else :src="`https://api.dicebear.com/7.x/initials/svg?seed=${item.email}`" class="w-10 h-10 rounded-xl">
+                        <div class="flex-1 overflow-hidden">
                             <p class="text-sm font-bold truncate tracking-tight">{{ item.name || item.email?.split('@')[0] }}</p>
-                            <p class="text-[9px] text-slate-400 truncate tracking-tight">{{ item.type === 'group' ? `${item.members.length}人のメンバー` : item.email }}</p>
+                            <p class="text-[9px] text-slate-400 truncate tracking-tight">{{ item.type === 'group' ? 'グループ' : 'DM' }}</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Sidebar Content: Circle Info -->
+                <!-- Sidebar Circle Info -->
                 <div v-if="activeTab === 'circle'" class="flex-1 overflow-y-auto liquid-scroll pr-1">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-4">サークル状況</p>
                     <div class="p-4 bg-white/50 rounded-2xl border border-slate-100 mb-4">
                         <p class="text-xs font-bold mb-1">あなたの投稿</p>
                         <p class="text-2xl font-black">{{ myPostsCount }}</p>
                     </div>
-                    <button @click="openPostModal" class="w-full py-4 bg-blue-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-100 hover:scale-[1.02] active:scale-95 transition-all">
+                    <button @click="modalMode = 'post'" class="w-full py-4 bg-blue-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-100 hover:scale-[1.02] active:scale-95 transition-all">
                         <i class="fas fa-feather-alt mr-2"></i>新しい投稿
                     </button>
                 </div>
 
                 <!-- Profile -->
                 <div v-if="user" class="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3 px-2">
-                    <img :src="user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`" class="w-10 h-10 rounded-xl shadow-sm">
+                    <img @click="openProfile(user)" :src="user.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`" class="w-10 h-10 rounded-xl shadow-sm cursor-pointer hover:opacity-80">
                     <div class="overflow-hidden flex-1">
                         <p class="text-xs font-bold truncate">{{ user.userId }}</p>
-                        <p class="text-[9px] text-slate-400 truncate tracking-tighter uppercase font-black">認証済み</p>
+                        <p class="text-[9px] text-slate-400 truncate font-black">LOGIN</p>
                     </div>
                     <button @click="logout" class="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-400 transition">
                         <i class="fas fa-power-off text-xs"></i>
@@ -162,75 +160,68 @@
             </div>
         </aside>
 
-        <!-- Main Content Area -->
+        <!-- Main -->
         <main class="flex-1 flex flex-col relative w-full h-full bg-transparent overflow-hidden">
             
-            <!-- CHAT VIEW -->
+            <!-- CHAT -->
             <div v-if="activeTab === 'chat'" class="h-full flex flex-col">
                 <header class="h-20 flex items-center justify-between px-4 md:px-10 border-b border-slate-100 bg-white/40 backdrop-blur-md shrink-0">
-                    <div class="flex items-center gap-3 md:gap-4 overflow-hidden">
-                        <button @click="sidebarOpen = true" class="md:hidden w-10 h-10 flex items-center justify-center text-slate-600">
-                            <i class="fas fa-bars"></i>
-                        </button>
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <button @click="sidebarOpen = true" class="md:hidden w-10 h-10 flex items-center justify-center text-slate-600"><i class="fas fa-bars"></i></button>
                         <template v-if="activeChat">
-                            <img v-if="activeChat.type === 'group'" :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${activeChat.id}`" class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-slate-100">
-                            <img v-else :src="`https://api.dicebear.com/7.x/initials/svg?seed=${activeChat.email}`" class="w-9 h-9 md:w-10 md:h-10 rounded-xl">
-                            <div class="overflow-hidden">
-                                <h2 class="font-bold text-sm md:text-base tracking-tight truncate">{{ activeChat.name || activeChat.email }}</h2>
-                                <span class="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest block">
-                                    {{ activeChat.type === 'group' ? 'グループチャット' : 'ダイレクトメッセージ' }}
-                                </span>
-                            </div>
+                            <h2 class="font-bold text-sm md:text-base tracking-tight truncate">{{ activeChat.name || activeChat.email }}</h2>
                         </template>
-                        <div v-else class="text-sm font-bold text-slate-400">メッセージを選択</div>
                     </div>
                 </header>
 
                 <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 liquid-scroll">
-                    <div v-if="!activeChat" class="h-full flex flex-col items-center justify-center opacity-10">
-                        <i class="fas fa-paper-plane text-9xl mb-6"></i>
-                        <p class="text-sm font-black tracking-widest uppercase">Select Conversation</p>
-                    </div>
                     <div v-for="m in messages" :key="m.id" :class="m.sender === user?.email ? 'flex-row-reverse' : ''" class="flex items-end gap-3">
+                        <!-- Profile Image for Others -->
+                        <img v-if="m.sender !== user?.email" @click="openProfile({email: m.sender, userId: m.senderName})" :src="`https://api.dicebear.com/7.x/initials/svg?seed=${m.sender}`" class="w-8 h-8 rounded-lg cursor-pointer mb-6">
+                        
                         <div :class="[m.sender === user?.email ? 'items-end' : 'items-start', 'flex flex-col max-w-[85%] md:max-w-[70%]']">
-                            <p v-if="activeChat?.type === 'group' && m.sender !== user?.email" class="text-[8px] font-black text-slate-400 uppercase mb-1 ml-2">{{ m.senderName }}</p>
+                            <p v-if="m.sender !== user?.email" class="text-[8px] font-black text-slate-400 uppercase mb-1 ml-2">{{ m.senderName }}</p>
                             <div :class="[m.sender === user?.email ? 'chat-bubble-me' : 'chat-bubble-other', 'px-4 py-2.5 text-sm shadow-sm']">
-                                <span class="whitespace-pre-wrap leading-relaxed">{{ m.content }}</span>
+                                <div v-if="m.type === 'image'" class="mb-1">
+                                    <img :src="m.content" class="max-w-full rounded-lg cursor-pointer" @click="window.open(m.content)">
+                                </div>
+                                <span v-else class="whitespace-pre-wrap leading-relaxed">{{ m.content }}</span>
                             </div>
                             <p class="text-[8px] text-slate-300 font-bold uppercase mt-1 px-1">{{ formatTime(m.createdAt) }}</p>
                         </div>
                     </div>
                 </div>
 
+                <!-- Input -->
                 <div v-if="activeChat" class="p-4 md:p-10 pt-0 pb-6 md:pb-10 bg-white md:bg-transparent">
-                    <div class="max-w-4xl mx-auto flex items-end gap-2 md:gap-3 bg-white p-2 rounded-[24px] border border-slate-100 shadow-2xl shadow-slate-100 relative">
-                        <textarea v-model="newMessage" @keydown.enter.exact.prevent="handleSend" rows="1" placeholder="メッセージを入力..." class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-4 resize-none max-h-32 font-medium"></textarea>
-                        <button @click="handleSend" :disabled="!newMessage.trim()" class="w-11 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center disabled:opacity-20 transition-all shadow-lg mb-0.5 mr-0.5 shrink-0">
-                            <i class="fas fa-paper-plane text-xs"></i>
+                    <div class="max-w-4xl mx-auto flex items-end gap-2 md:gap-3 bg-white p-2 rounded-[24px] border border-slate-100 shadow-2xl relative">
+                        <label class="w-11 h-11 text-slate-400 hover:text-blue-500 transition flex items-center justify-center cursor-pointer">
+                            <i class="fas fa-image"></i>
+                            <input type="file" class="hidden" accept="image/*" @change="handleFileUpload">
+                        </label>
+                        <textarea v-model="newMessage" @keydown.enter.exact.prevent="handleSend" rows="1" placeholder="メッセージを入力..." class="flex-1 bg-transparent border-none focus:ring-0 text-sm py-3 px-2 resize-none max-h-32 font-medium"></textarea>
+                        <button @click="handleSend" :disabled="!newMessage.trim() && !isUploading" class="w-11 h-11 bg-slate-900 text-white rounded-2xl flex items-center justify-center disabled:opacity-20 transition-all shadow-lg mb-0.5 mr-0.5">
+                            <i v-if="isUploading" class="fas fa-circle-notch fa-spin text-xs"></i>
+                            <i v-else class="fas fa-paper-plane text-xs"></i>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- CIRCLE (SNS) VIEW -->
+            <!-- CIRCLE -->
             <div v-if="activeTab === 'circle'" class="h-full flex flex-col">
                 <header class="h-20 flex items-center justify-between px-4 md:px-10 border-b border-slate-100 bg-white/40 backdrop-blur-md shrink-0">
                     <div class="flex items-center gap-3">
-                        <button @click="sidebarOpen = true" class="md:hidden w-10 h-10 flex items-center justify-center text-slate-600">
-                            <i class="fas fa-bars"></i>
-                        </button>
+                        <button @click="sidebarOpen = true" class="md:hidden w-10 h-10 flex items-center justify-center text-slate-600"><i class="fas fa-bars"></i></button>
                         <h2 class="font-black text-lg tracking-tighter">NoppoCircle</h2>
                     </div>
-                    <button @click="syncCircle" class="w-10 h-10 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400">
-                        <i class="fas fa-sync-alt text-xs"></i>
-                    </button>
                 </header>
 
                 <div class="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 liquid-scroll">
                     <div class="max-w-2xl mx-auto space-y-6">
-                        <div v-for="post in circlePosts" :key="post.id" class="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                        <div v-for="post in circlePosts" :key="post.id" class="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm transition-all">
                             <div class="flex gap-4 mb-4">
-                                <img :src="`https://api.dicebear.com/7.x/initials/svg?seed=${post.authorEmail}`" class="w-12 h-12 rounded-2xl">
+                                <img @click="openProfile(post)" :src="`https://api.dicebear.com/7.x/initials/svg?seed=${post.authorEmail}`" class="w-12 h-12 rounded-2xl cursor-pointer hover:opacity-80">
                                 <div class="flex-1 min-w-0">
                                     <p class="font-bold text-sm truncate">{{ post.authorName }}</p>
                                     <p class="text-[10px] text-slate-400 font-medium tracking-tight">@{{ post.authorEmail.split('@')[0] }} • {{ formatTime(post.createdAt) }}</p>
@@ -238,65 +229,57 @@
                             </div>
                             <p class="text-sm leading-relaxed whitespace-pre-wrap mb-4">{{ post.content }}</p>
                             <div class="flex items-center gap-6 pt-4 border-t border-slate-50">
-                                <button class="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors">
-                                    <i class="far fa-heart text-xs"></i><span class="text-[10px] font-bold">0</span>
+                                <button @click="toggleLike(post)" :class="post.likes?.includes(user?.email) ? 'text-red-500' : 'text-slate-400'" class="flex items-center gap-2 hover:opacity-70 transition-all">
+                                    <i :class="post.likes?.includes(user?.email) ? 'fas fa-heart' : 'far fa-heart'" class="text-xs"></i>
+                                    <span class="text-[10px] font-bold">{{ post.likes?.length || 0 }}</span>
                                 </button>
-                                <button class="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors">
-                                    <i class="far fa-comment text-xs"></i><span class="text-[10px] font-bold">0</span>
-                                </button>
+                                <button class="flex items-center gap-2 text-slate-400"><i class="far fa-comment text-xs"></i><span class="text-[10px] font-bold">0</span></button>
                             </div>
-                        </div>
-
-                        <div v-if="circlePosts.length === 0" class="text-center py-20 opacity-20">
-                            <i class="fas fa-circle-notch fa-spin text-4xl mb-4"></i>
-                            <p class="text-xs font-black uppercase tracking-widest">投稿を読み込み中...</p>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- Mobile Bottom Nav -->
-        <nav class="md:hidden flex h-16 bg-white/80 backdrop-blur-xl border-t border-slate-100 shrink-0">
-            <button @click="activeTab = 'chat'" :class="activeTab === 'chat' ? 'text-blue-500' : 'text-slate-300'" class="flex-1 flex flex-col items-center justify-center">
-                <i class="fas fa-comment-dots text-lg"></i>
-                <span class="text-[8px] font-black uppercase mt-1">Chat</span>
-            </button>
-            <button @click="activeTab = 'circle'" :class="activeTab === 'circle' ? 'text-blue-500' : 'text-slate-300'" class="flex-1 flex flex-col items-center justify-center">
-                <i class="fas fa-circle-notch text-lg"></i>
-                <span class="text-[8px] font-black uppercase mt-1">Circle</span>
-            </button>
-        </nav>
-
-        <!-- Modal: Add Contact/Group -->
-        <div v-if="modalMode !== 'none' && modalMode !== 'post'" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <!-- Modals -->
+        <div v-if="modalMode !== 'none'" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div @click="modalMode = 'none'" class="absolute inset-0 n-modal-overlay"></div>
-            <div class="bg-white rounded-[40px] w-full max-w-sm relative p-8 shadow-2xl" @click.stop>
+            
+            <!-- Contact/Group Modal -->
+            <div v-if="modalMode === 'contact' || modalMode === 'group'" class="bg-white rounded-[40px] w-full max-w-sm relative p-8 shadow-2xl" @click.stop>
                 <div class="flex gap-4 mb-8">
                     <button @click="modalMode = 'contact'" :class="modalMode === 'contact' ? 'text-slate-900' : 'text-slate-300'" class="text-xs font-black uppercase tracking-widest transition-colors">連絡先</button>
                     <button @click="modalMode = 'group'" :class="modalMode === 'group' ? 'text-slate-900' : 'text-slate-300'" class="text-xs font-black uppercase tracking-widest transition-colors">グループ</button>
                 </div>
                 <div v-if="modalMode === 'contact'">
-                    <input v-model="formData.email" placeholder="メールアドレス" class="w-full p-5 bg-slate-50 rounded-2xl text-sm font-bold mb-4 outline-none">
+                    <input v-model="formData.email" placeholder="相手のメールアドレス" class="w-full p-5 bg-slate-50 rounded-2xl text-sm font-bold mb-4 outline-none">
                     <button @click="addContact" class="w-full py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase">追加</button>
                 </div>
                 <div v-if="modalMode === 'group'">
                     <input v-model="formData.groupName" placeholder="グループ名" class="w-full p-5 bg-slate-50 rounded-2xl text-sm font-bold mb-4 outline-none">
-                    <textarea v-model="formData.members" placeholder="メンバーのメールアドレス (カンマ区切り)" class="w-full p-5 bg-slate-50 rounded-2xl text-sm font-bold mb-6 outline-none h-24 resize-none"></textarea>
+                    <textarea v-model="formData.members" placeholder="メンバーのメール (カンマ区切り)" class="w-full p-5 bg-slate-50 rounded-2xl text-sm font-bold mb-6 outline-none h-24 resize-none"></textarea>
                     <button @click="createGroup" class="w-full py-5 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase">作成</button>
                 </div>
             </div>
-        </div>
 
-        <!-- Modal: Post to Circle -->
-        <div v-if="modalMode === 'post'" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div @click="modalMode = 'none'" class="absolute inset-0 n-modal-overlay"></div>
-            <div class="bg-white rounded-[40px] w-full max-w-lg relative p-8 shadow-2xl" @click.stop>
+            <!-- Post Modal -->
+            <div v-if="modalMode === 'post'" class="bg-white rounded-[40px] w-full max-w-lg relative p-8 shadow-2xl" @click.stop>
                 <h3 class="text-xl font-black mb-6 tracking-tighter">サークルに投稿</h3>
-                <textarea v-model="newPostContent" placeholder="今どうしてる？" class="w-full p-6 bg-slate-50 border border-slate-100 rounded-[32px] text-sm font-medium mb-6 outline-none h-40 resize-none"></textarea>
+                <textarea v-model="newPostContent" placeholder="最近あった面白いことは？" class="w-full p-6 bg-slate-50 border border-slate-100 rounded-[32px] text-sm font-medium mb-6 outline-none h-40 resize-none"></textarea>
                 <div class="flex justify-end gap-3">
                     <button @click="modalMode = 'none'" class="px-6 py-4 text-slate-400 text-xs font-black uppercase">キャンセル</button>
-                    <button @click="postToCircle" :disabled="!newPostContent.trim()" class="px-8 py-4 bg-blue-500 text-white rounded-2xl text-xs font-black uppercase shadow-lg shadow-blue-100 disabled:opacity-30">投稿する</button>
+                    <button @click="postToCircle" :disabled="!newPostContent.trim()" class="px-8 py-4 bg-blue-500 text-white rounded-2xl text-xs font-black uppercase shadow-lg shadow-blue-100">投稿</button>
+                </div>
+            </div>
+
+            <!-- Profile Modal -->
+            <div v-if="modalMode === 'profile' && selectedProfile" class="bg-white rounded-[40px] w-full max-w-sm relative p-8 shadow-2xl text-center profile-card" @click.stop>
+                <img :src="`https://api.dicebear.com/7.x/initials/svg?seed=${selectedProfile.email || selectedProfile.authorEmail}`" class="w-24 h-24 rounded-[32px] mx-auto mb-6 shadow-xl">
+                <h3 class="text-xl font-black mb-1 tracking-tight">{{ selectedProfile.authorName || selectedProfile.userId || selectedProfile.email }}</h3>
+                <p class="text-xs text-slate-400 font-bold mb-8">@{{ (selectedProfile.email || selectedProfile.authorEmail || '').split('@')[0] }}</p>
+                <div class="flex gap-2">
+                    <button @click="modalMode = 'none'" class="flex-1 py-4 bg-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600">閉じる</button>
+                    <button @click="startDirectChatFromProfile" class="flex-1 py-4 bg-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white">DMを送る</button>
                 </div>
             </div>
         </div>
@@ -323,22 +306,22 @@
         const firebaseConfigRaw = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : manualFirebaseConfig;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'noppo-chat-direct-v1-4';
 
+
         createApp({
             setup() {
                 const user = ref(null);
                 const activeTab = ref('chat');
                 const sidebarOpen = ref(window.innerWidth > 1024);
-                
                 const items = ref([]);
                 const activeChat = ref(null);
                 const messages = ref([]);
                 const newMessage = ref('');
-                
                 const circlePosts = ref([]);
                 const newPostContent = ref('');
                 const myPostsCount = ref(0);
-
                 const modalMode = ref('none');
+                const selectedProfile = ref(null);
+                const isUploading = ref(false);
                 const formData = ref({ email: '', groupName: '', members: '' });
 
                 let db, auth, currentChatUnsub = null, circleUnsub = null;
@@ -354,7 +337,7 @@
                                 window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
                                 return data;
                             }
-                        } catch (e) { console.error("Auth Fetch Error", e); }
+                        } catch (e) { console.error("Auth Error", e); }
                     }
                     return JSON.parse(localStorage.getItem('noppo_user'));
                 };
@@ -363,7 +346,6 @@
                     const fbApp = initializeApp(firebaseConfigRaw);
                     auth = getAuth(fbApp);
                     db = getFirestore(fbApp);
-                    
                     user.value = await checkAuth();
                     
                     onAuthStateChanged(auth, async (fbUser) => {
@@ -384,28 +366,36 @@
 
                 const syncSidebarData = () => {
                     if (!user.value || !db) return;
-                    
-                    const contactsRef = collection(db, 'artifacts', appId, 'users', user.value.email, 'contacts');
-                    onSnapshot(contactsRef, (snap) => {
-                        const newContacts = snap.docs.map(d => ({ ...d.data(), type: 'contact' }));
-                        items.value = [...items.value.filter(i => i.type !== 'contact'), ...newContacts];
-                    }, (err) => console.error("Contact sync error:", err));
-                    
-                    const groupsRef = collection(db, 'artifacts', appId, 'users', user.value.email, 'groups');
-                    onSnapshot(groupsRef, (snap) => {
-                        const newGroups = snap.docs.map(d => ({ ...d.data(), type: 'group' }));
-                        items.value = [...items.value.filter(i => i.type !== 'group'), ...newGroups];
-                    }, (err) => console.error("Group sync error:", err));
+                    const cRef = collection(db, 'artifacts', appId, 'users', user.value.email, 'contacts');
+                    onSnapshot(cRef, (snap) => {
+                        const contacts = snap.docs.map(d => ({ ...d.data(), type: 'contact' }));
+                        items.value = [...items.value.filter(i => i.type !== 'contact'), ...contacts];
+                    });
+                    const gRef = collection(db, 'artifacts', appId, 'users', user.value.email, 'groups');
+                    onSnapshot(gRef, (snap) => {
+                        const groups = snap.docs.map(d => ({ ...d.data(), type: 'group' }));
+                        items.value = [...items.value.filter(i => i.type !== 'group'), ...groups];
+                    });
                 };
 
                 const syncCircle = () => {
                     if (!db) return;
                     if (circleUnsub) circleUnsub();
-                    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'circle_posts'), orderBy('createdAt', 'desc'), limit(50));
+                    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'circle_posts'), orderBy('createdAt', 'desc'), limit(100));
                     circleUnsub = onSnapshot(q, (snap) => {
                         circlePosts.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                         myPostsCount.value = circlePosts.value.filter(p => p.authorEmail === user.value?.email).length;
-                    }, (err) => console.error("Circle sync error:", err));
+                    });
+                };
+
+                const getRoomId = (chat) => {
+                    if (!chat || !user.value) return null;
+                    if (chat.type === 'group') return chat.id;
+                    const otherEmail = chat.email || chat.authorEmail;
+                    if (!otherEmail) return null;
+                    // アルファベット順にソートして、同じペアなら同じIDになるようにする
+                    const sorted = [user.value.email, otherEmail].sort();
+                    return 'dm_' + btoa(sorted.join('_')).replace(/=/g, '');
                 };
 
                 const selectItem = (item) => {
@@ -414,18 +404,10 @@
                     syncMessages();
                 };
 
-                const getRoomId = () => {
-                    if (!activeChat.value || !user.value) return null;
-                    if (activeChat.value.type === 'group') return activeChat.value.id;
-                    // DMの場合はメールアドレスをソートして結合し、記号を削除
-                    return [user.value.email, activeChat.value.email].sort().join('_').replace(/[@.]/g, '');
-                };
-
                 const syncMessages = () => {
-                    const roomId = getRoomId();
+                    const roomId = getRoomId(activeChat.value);
                     if(!db || !roomId) return;
                     if(currentChatUnsub) currentChatUnsub();
-                    
                     const q = query(collection(db, 'artifacts', appId, 'rooms', roomId, 'messages'), orderBy('createdAt', 'asc'));
                     currentChatUnsub = onSnapshot(q, (snap) => {
                         messages.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -433,77 +415,114 @@
                             const c = document.getElementById('chat-container'); 
                             if(c) c.scrollTop = c.scrollHeight; 
                         });
-                    }, (err) => console.error("Message sync error:", err));
+                    }, (err) => console.error("Snapshot error:", err));
                 };
 
                 const handleSend = async () => {
-                    const roomId = getRoomId();
+                    const roomId = getRoomId(activeChat.value);
                     if (!newMessage.value.trim() || !db || !roomId) return;
                     const content = newMessage.value;
                     newMessage.value = '';
-                    
                     await addDoc(collection(db, 'artifacts', appId, 'rooms', roomId, 'messages'), {
-                        sender: user.value.email, 
-                        senderName: user.value.userId,
-                        content, 
-                        type: 'text', 
-                        createdAt: serverTimestamp()
+                        sender: user.value.email, senderName: user.value.userId, content, type: 'text', createdAt: serverTimestamp()
                     });
+                };
+
+                const handleFileUpload = async (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    isUploading.value = true;
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const base64Data = e.target.result;
+                        const roomId = getRoomId(activeChat.value);
+                        if(roomId && db) {
+                            await addDoc(collection(db, 'artifacts', appId, 'rooms', roomId, 'messages'), {
+                                sender: user.value.email, senderName: user.value.userId, content: base64Data, type: 'image', createdAt: serverTimestamp()
+                            });
+                        }
+                        isUploading.value = false;
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                const toggleLike = async (post) => {
+                    if(!db || !user.value) return;
+                    const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'circle_posts', post.id);
+                    const isLiked = post.likes?.includes(user.value.email);
+                    await updateDoc(postRef, {
+                        likes: isLiked ? arrayRemove(user.value.email) : arrayUnion(user.value.email)
+                    });
+                };
+
+                const openProfile = (target) => {
+                    selectedProfile.value = target;
+                    modalMode.value = 'profile';
+                };
+
+                const startDirectChatFromProfile = () => {
+                    const targetEmail = selectedProfile.value.authorEmail || selectedProfile.value.email;
+                    if (targetEmail === user.value.email) {
+                        modalMode.value = 'none';
+                        return;
+                    }
+                    const existing = items.value.find(i => i.email === targetEmail);
+                    if (existing) {
+                        selectItem(existing);
+                    } else {
+                        const newContact = { email: targetEmail, name: targetEmail.split('@')[0], type: 'contact' };
+                        // Contactに追加して保存（あとでサイドバーに反映される）
+                        addContactManually(targetEmail);
+                        selectItem(newContact);
+                    }
+                    activeTab.value = 'chat';
+                    modalMode.value = 'none';
+                };
+
+                const addContactManually = async (email) => {
+                    if(!db || !user.value) return;
+                    await setDoc(doc(db, 'artifacts', appId, 'users', user.value.email, 'contacts', email), { email, name: email.split('@')[0], addedAt: serverTimestamp() });
                 };
 
                 const postToCircle = async () => {
                     if (!newPostContent.value.trim() || !db) return;
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'circle_posts'), {
-                        authorEmail: user.value.email,
-                        authorName: user.value.userId,
-                        content: newPostContent.value,
-                        createdAt: serverTimestamp()
+                        authorEmail: user.value.email, authorName: user.value.userId, content: newPostContent.value, likes: [], createdAt: serverTimestamp()
                     });
-                    newPostContent.value = '';
-                    modalMode.value = 'none';
+                    newPostContent.value = ''; modalMode.value = 'none';
                 };
 
                 const addContact = async () => {
                     const email = formData.value.email.trim();
                     if(!email || !db || !user.value) return;
-                    await setDoc(doc(db, 'artifacts', appId, 'users', user.value.email, 'contacts', email), {
-                        email, name: email.split('@')[0], addedAt: serverTimestamp()
-                    });
-                    modalMode.value = 'none';
-                    formData.value.email = '';
+                    await addContactManually(email);
+                    modalMode.value = 'none'; formData.value.email = '';
                 };
 
                 const createGroup = async () => {
                     const name = formData.value.groupName.trim();
-                    const memberList = formData.value.members.split(',').map(m => m.trim()).filter(m => m);
+                    const list = formData.value.members.split(',').map(m => m.trim()).filter(m => m);
                     if (!name || !db || !user.value) return;
-                    const groupId = 'grp_' + Date.now();
-                    const allMembers = [...new Set([...memberList, user.value.email])];
-                    
-                    for (const email of allMembers) {
-                        await setDoc(doc(db, 'artifacts', appId, 'users', email, 'groups', groupId), {
-                            id: groupId, name, members: allMembers, type: 'group', createdAt: serverTimestamp()
-                        });
+                    const gid = 'grp_' + Date.now();
+                    const members = [...new Set([...list, user.value.email])];
+                    for (const email of members) {
+                        await setDoc(doc(db, 'artifacts', appId, 'users', email, 'groups', gid), { id: gid, name, members, type: 'group', createdAt: serverTimestamp() });
                     }
-                    modalMode.value = 'none';
-                    formData.value.groupName = '';
-                    formData.value.members = '';
+                    modalMode.value = 'none'; formData.value.groupName = ''; formData.value.members = '';
                 };
 
                 onMounted(initApp);
 
                 return {
                     user, activeTab, sidebarOpen, items, activeChat, messages, newMessage,
-                    circlePosts, newPostContent, myPostsCount,
-                    modalMode, formData,
+                    circlePosts, newPostContent, myPostsCount, modalMode, selectedProfile, formData, isUploading,
                     login: () => window.location.href = `${AUTH_URL}?redirect=${encodeURIComponent(window.location.href)}`,
                     logout: () => { localStorage.removeItem('noppo_user'); window.location.href = `${AUTH_URL}/logout?redirect=${encodeURIComponent(window.location.origin)}`; },
-                    openAddModal: () => modalMode.value = 'contact',
-                    openPostModal: () => modalMode.value = 'post',
-                    selectItem, handleSend, postToCircle, syncCircle, addContact, createGroup,
+                    selectItem, handleSend, handleFileUpload, postToCircle, toggleLike, openProfile, startDirectChatFromProfile, addContact, createGroup,
                     activeChatId: computed(() => activeChat.value?.type === 'group' ? activeChat.value.id : activeChat.value?.email),
-                    sortedItems: computed(() => [...items.value].sort((a, b) => ((b.addedAt?.seconds || 0) - (a.addedAt?.seconds || 0)))),
-                    formatTime: (ts) => ts ? new Date(ts.seconds * 1000).toLocaleString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '...'
+                    sortedItems: computed(() => [...items.value].sort((a, b) => (b.addedAt?.seconds || 0) - (a.addedAt?.seconds || 0))),
+                    formatTime: (ts) => ts ? new Date(ts.seconds * 1000).toLocaleString('ja-JP', { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }) : '...'
                 };
             }
         }).mount('#app');
